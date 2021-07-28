@@ -40,7 +40,7 @@ fi
 
 
 gmm_dir=exp/${gmm}
-ali_dir=exp/${gmm}_sp_ali
+ali_dir=exp/${gmm}_ali_train_sp
 dir=exp/nnet3/tdnn${tdnn_affix}
 train_data_dir=data/${train_set}
 train_ivector_dir=" "

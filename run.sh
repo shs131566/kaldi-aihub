@@ -5,7 +5,7 @@ data=$1
 stage=0
 nj=`grep -c processor /proc/cpuinfo`
 
-vocab_size=3000
+vocab_size=32000
 
 exp=exp
 train=train
@@ -167,7 +167,7 @@ if [ $stage -le 11 ]; then
 
     utils/mkgraph.sh data/$lang exp/tri4b exp/tri4b/graph
 
-    for part in "test_clean" "test_other" 
+    for part in "test_clean" "test_other";
     do
         steps/decode_fmllr.sh --nj $nj --cmd "$decode_cmd" exp/tri4b/graph data/$test/$part exp/tri4b/decode_$part
         steps/scoring/score_kaldi_cer.sh data/$test/$part data/$lang exp/tri4b/decode_$part.si
@@ -178,23 +178,28 @@ if [ $stage -le 12 ]; then
     echo -e "[Stage 12]: Preparing speed-perturbation."
 
     utils/fix_data_dir.sh data/$train
-    utils/data/perturb_data_dir_speed_3way.sh data/$train data/${train}_sp_hires
+    utils/data/perturb_data_dir_speed_3way.sh data/$train data/${train}_sp
+    
+    steps/make_mfcc.sh --cmd "$train_cmd" --nj $nj data/${train}_sp
+    steps/compute_cmvn_stats.sh data/${train}_sp
+
+    steps/align_fmllr.sh data/${train}_sp data/$lang exp/tri4b exp/tri4b_ali_${train}_sp
 fi
 
 if [ $stage -le 13 ]; then
-    echo -e "[Stage 13]: Make MFCC for speed-perturbation data."
+    echo -e "[Stage 13]: Preparing volume-perturbation."
+    utils/copy_data_dir.sh data/${train}_sp data/${train}_sp_hires
+    utils/data/perturb_data_dir_volume.sh data/${train}_sp_hires
+fi
+
+if [ $stage -le 14 ]; then
+    echo -e "[Stage 14]: Make MFCC for perturbation data."
 
     steps/make_mfcc.sh --cmd "$train_cmd" --nj $nj --mfcc_config conf/mfcc_hires.conf \
         data/${train}_sp_hires
     steps/compute_cmvn_stats.sh data/${train}_sp_hires
 
     utils/fix_data_dir.sh data/${train}_sp_hires
-fi
-
-if [ $stage -le 14 ]; then
-    echo -e "[Stage 14]: Align speed-perturbation data."
-
-    steps/align_fmllr.sh --cmd "$train_cmd" --nj $nj data/train_sp data/lang exp/tri4b exp/tri4b_sp_ali
 fi
 
 if [ $stage -le 15 ]; then
